@@ -30,12 +30,26 @@ class MainWindow(QMainWindow):
         self.mode = "fusion"
 
         self.figure = Figure(figsize=(5, 4), dpi=100)
+        self.figure.patch.set_facecolor('black')
+
         self.canvas = FigureCanvas(self.figure)
         self.canvas.setFixedSize(800, 500)
         self.canvas.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         self.gridLayout_2.addWidget(self.canvas)
 
         self.ax = self.figure.add_subplot(111)
+        self.ax.set_facecolor('black')  # Couleur de fond des axes
+
+        # Pour une meilleure lisibilité, vous pouvez vouloir changer la couleur des axes et des labels
+        self.ax.tick_params(axis='x', colors='white')  # Couleur des ticks de l'axe X
+        self.ax.tick_params(axis='y', colors='white')  # Couleur des ticks de l'axe Y
+        self.ax.spines['bottom'].set_color('white')  # Couleur du bas du cadre
+        self.ax.spines['top'].set_color('white')  # Couleur du haut du cadre
+        self.ax.spines['right'].set_color('white')  # Couleur de droite du cadre
+        self.ax.spines['left'].set_color('white')  # Couleur de gauche du cadre
+        self.ax.xaxis.label.set_color('white')  # Couleur du label de l'axe X
+        self.ax.yaxis.label.set_color('white')  # Couleur du label de l'axe Y
+        self.ax.title.set_color('white')  # Couleur du titre
         self.update_plot()
         self.canvas.mpl_connect('button_press_event', self.on_click)
 
@@ -46,10 +60,18 @@ class MainWindow(QMainWindow):
 
         self.CloseModeButton.clicked.connect(lambda: self.change_mode("close"))
         self.DeleteModeButton.clicked.connect(lambda: self.change_mode("delete"))
-        self.GetModeButton.clicked.connect(lambda: self.change_mode("get"))
+        self.SelectFigureButton.clicked.connect(lambda: self.change_mode("select"))
 
         self.NameTextEdit.textChanged.connect(self.change_name_map)
         self.checkBoxFile.stateChanged.connect(self.change_state)
+        self.ModeComboBox.currentIndexChanged.connect(self.change_mode_actual_figure)
+
+        self.index_figure = 0
+
+    def change_mode_actual_figure(self, index):
+        selected_item = self.ModeComboBox.itemText(index)
+        self.map.figures[self.index_figure].mode = selected_item
+        self.update_plot()
 
     def change_name_map(self):
         self.name = self.NameTextEdit.toPlainText()
@@ -113,12 +135,15 @@ class MainWindow(QMainWindow):
                     self.update_plot()
             elif self.mode == "delete":
                 self.delete_point(event.xdata, event.ydata)
+            elif self.mode == "select":
+                self.index_figure = self.find_nearest_point_index((event.xdata, event.ydata))[0]
+                self.FiguresLabel.setText("Figure : {}".format(self.index_figure))
 
     def delete_point(self, x, y):
         # Recherche de l'indice du point le plus proche des coordonnées données
-        index, index_figure = self.find_nearest_point_index((x, y))
+        index_figure, index = self.find_nearest_point_index((x, y))
         # Suppression du point
-        del self.map.figures[index][index_figure]
+        del self.map.figures[index_figure].points[index]
         self.update_plot()
 
     def merge_points(self, point1, point2):
@@ -127,7 +152,7 @@ class MainWindow(QMainWindow):
         index_figure2, index2 = self.find_nearest_point_index(point2)
 
         # Ajout du nouveau point au premier ensemble de points
-        self.map.figures[index_figure1].append(Point(x=self.map.figures[index_figure1][index1].x, y=self.map.figures[index_figure1][index1].y))
+        self.map.figures[index_figure1].points.append(Point(x=self.map.figures[index_figure1].points[index1].x, y=self.map.figures[index_figure1].points[index1].y))
 
 
         # Rafraîchissement du graphique
@@ -153,13 +178,14 @@ class MainWindow(QMainWindow):
 
         except ValueError:
             print("Erreur de conversion de coordonnées")
+
     def find_nearest_point_index(self, point):
         min_distance = float('inf')
         nearest_index = None
         nearest_figure_index = None
 
         for f_index, figure in enumerate(self.map.figures):
-            for p_index, p in enumerate(figure):
+            for p_index, p in enumerate(figure.points):
                 distance = np.sqrt((point[0] - p.x) ** 2 + (point[1] - p.y) ** 2)
                 if distance < min_distance:
                     min_distance = distance
@@ -173,12 +199,16 @@ class MainWindow(QMainWindow):
 
         # Affichage des points
         for i, figure in enumerate(self.map.figures):
-            x = [point.x for point in figure]
-            y = [point.y for point in figure]
-            if i == 0:
+            x = [point.x for point in figure.points]
+            y = [point.y for point in figure.points]
+
+            if figure.mode == "line":
                 self.ax.plot(x, y, 'bo-')
-            else:
-                self.ax.plot(x, y, 'ro-')
+            if figure.mode == "obstacle":
+                self.ax.plot(x, y, 'wo-')
+            if figure.mode == "fond":
+                self.ax.fill(x, y, 'o')
+                self.ax.plot(x, y, 'w-')
 
         self.canvas.draw()
 
