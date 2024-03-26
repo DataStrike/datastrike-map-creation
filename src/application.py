@@ -2,6 +2,7 @@ import sys
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from get_coordonate import GetCoordonate
+from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 from PyQt5.QtWidgets import QApplication, QMainWindow, QVBoxLayout, QWidget, QPushButton, QFileDialog
 from PyQt5.QtWidgets import QSizePolicy
 from PyQt5 import QtWidgets, uic
@@ -21,8 +22,11 @@ class MainWindow(QMainWindow):
 
         if map is None:
             self.map = Map(name=name, figures=[])
+            self.map.init()
+
         else:
             self.map = Map.from_json(map)
+            self.map.init()
 
         self.name = name
         self.file_reader = None
@@ -35,8 +39,8 @@ class MainWindow(QMainWindow):
         self.canvas = FigureCanvas(self.figure)
         self.canvas.setFixedSize(800, 500)
         self.canvas.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
-        self.gridLayout_2.addWidget(self.canvas)
-
+        self.gridLayout_2.addWidget(self.canvas, 1, 0, 1, 2)
+        self.addToolBar(NavigationToolbar(self.canvas, self))
         self.ax = self.figure.add_subplot(111)
         self.ax.set_facecolor('black')  # Couleur de fond des axes
 
@@ -61,6 +65,13 @@ class MainWindow(QMainWindow):
         self.CloseModeButton.clicked.connect(lambda: self.change_mode("close"))
         self.DeleteModeButton.clicked.connect(lambda: self.change_mode("delete"))
         self.SelectFigureButton.clicked.connect(lambda: self.change_mode("select"))
+        self.SelectPointButton.clicked.connect(lambda: self.change_mode("select_point"))
+
+        self.floorLessButton.clicked.connect(lambda: self.change_floor(-1))
+        self.floorMoreButton.clicked.connect(lambda: self.change_floor(1))
+        self.floorNewButton.clicked.connect(lambda: self.add_floor())
+
+        self.floorLabel.setText("Floor : {}".format(self.map.actual_floors))
 
         self.NameTextEdit.textChanged.connect(self.change_name_map)
         self.checkBoxFile.stateChanged.connect(self.change_state)
@@ -68,9 +79,26 @@ class MainWindow(QMainWindow):
 
         self.index_figure = 0
 
+    def change_floor(self, index):
+
+        index = self.map.actual_floors + index
+
+        try:
+            t = self.map.floors[index]
+            self.map.actual_floors = index
+            self.update_plot()
+            self.floorLabel.setText("Floor : {}".format(self.map.actual_floors))
+        except IndexError:
+            print("Floor doesn't exist")
+
+    def add_floor(self):
+        self.map.add_floor()
+        self.update_plot()
+        self.floorLabel.setText("Floor : {}".format(self.map.actual_floors))
+
     def change_mode_actual_figure(self, index):
         selected_item = self.ModeComboBox.itemText(index)
-        self.map.figures[self.index_figure].mode = selected_item
+        self.map.floors[self.map.actual_floors].figures[self.index_figure].mode = selected_item
         self.update_plot()
 
     def change_name_map(self):
@@ -138,12 +166,14 @@ class MainWindow(QMainWindow):
             elif self.mode == "select":
                 self.index_figure = self.find_nearest_point_index((event.xdata, event.ydata))[0]
                 self.FiguresLabel.setText("Figure : {}".format(self.index_figure))
+            elif self.mode == "select_point":
+                self.reference_point = self.find_nearest_point_index((event.xdata, event.ydata))
 
     def delete_point(self, x, y):
         # Recherche de l'indice du point le plus proche des coordonnées données
         index_figure, index = self.find_nearest_point_index((x, y))
         # Suppression du point
-        del self.map.figures[index_figure].points[index]
+        del self.map.floors[self.map.actual_floors].figures[index_figure].points[index]
         self.update_plot()
 
     def merge_points(self, point1, point2):
@@ -152,7 +182,7 @@ class MainWindow(QMainWindow):
         index_figure2, index2 = self.find_nearest_point_index(point2)
 
         # Ajout du nouveau point au premier ensemble de points
-        self.map.figures[index_figure1].points.append(Point(x=self.map.figures[index_figure1].points[index1].x, y=self.map.figures[index_figure1].points[index1].y))
+        self.map.floors[self.map.actual_floors].figures[index_figure1].points.append(Point(x=self.map.floors[self.map.actual_floors].figures[index_figure1].points[index1].x, y=self.map.floors[self.map.actual_floors].figures[index_figure1].points[index1].y))
 
 
         # Rafraîchissement du graphique
@@ -167,6 +197,15 @@ class MainWindow(QMainWindow):
         self.update_plot()
 
     def add_point(self, x, y):
+
+        if self.mode == "select_point":
+            x = float(x)
+            y = float(y)
+
+            self.map.add_point_to_specific_point(x, y, self.reference_point[0], self.reference_point[1])
+            self.reference_point[1] += 1
+            self.update_plot()
+
 
         try:
             x = float(x)
@@ -184,7 +223,7 @@ class MainWindow(QMainWindow):
         nearest_index = None
         nearest_figure_index = None
 
-        for f_index, figure in enumerate(self.map.figures):
+        for f_index, figure in enumerate(self.map.floors[self.map.actual_floors].figures):
             for p_index, p in enumerate(figure.points):
                 distance = np.sqrt((point[0] - p.x) ** 2 + (point[1] - p.y) ** 2)
                 if distance < min_distance:
@@ -198,14 +237,14 @@ class MainWindow(QMainWindow):
         self.ax.clear()
 
         # Affichage des points
-        for i, figure in enumerate(self.map.figures):
+        for i, figure in enumerate(self.map.floors[self.map.actual_floors].figures):
             x = [point.x for point in figure.points]
             y = [point.y for point in figure.points]
 
             if figure.mode == "line":
                 self.ax.plot(x, y, 'bo-')
             if figure.mode == "obstacle":
-                self.ax.plot(x, y, 'wo-')
+                self.ax.plot(x, y, 'w-')
             if figure.mode == "fond":
                 self.ax.fill(x, y, 'o')
                 self.ax.plot(x, y, 'w-')

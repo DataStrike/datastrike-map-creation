@@ -1,35 +1,54 @@
 from src.objects.object import Object
 from src.objects.point import Point
 from src.objects.figure import Figure
-
+from src.objects.floor import Floor
 
 class Map(Object):
 
     def __init__(self, **kwargs):
         data_schema = {
                         "name": str,
-                        "figures": list
+                        "floors": list,
                       }
 
+        self.actual_floors = 0
         self.actual_obstacle = 1
         super().__init__(data_schema, **kwargs)
 
-        if len(self.figures) == 0:
-            self.figures.append(Figure(points=[], mode="full"))
+        # if len(self.floors) == 0:
+        #     self.floors.append(Floor(figures=[]))
+        #
+        # if len(self.floors[self.actual_floors].figures) == 0:
+        #     self.floors[self.actual_floors].figures.append(Figure(points=[], mode="full"))
+
+    def add_floor(self):
+        self.floors.append(Floor(figures=[]))
+        self.actual_floors += 1
+        self.floors[self.actual_floors].figures.append(Figure(points=[], mode="full"))
+
+    def init(self):
+
+        if len(self.floors) == 0:
+            self.floors.append(Floor(figures=[]))
+
+        if len(self.floors[self.actual_floors].figures) == 0:
+            self.floors[self.actual_floors].figures.append(Figure(points=[], mode="full"))
 
     def add_point(self, x, y):
-        self.figures[0].points.append(Point(x=x, y=y))
+        self.floors[self.actual_floors][0].points.append(Point(x=x, y=y))
         # self.points.append(Point(x=x, y=y))
 
+    def add_point_to_specific_point(self, x, y, figure_index, point_index):
+        new_point = Point(x=x, y=y)
+        self.floors[self.actual_floors][figure_index].points.insert(point_index + 1, new_point)
+
     def add_points_in_obstacles(self, x, y):
-        if len(self.figures) <= self.actual_obstacle:
-            self.figures.append(Figure(points=[], mode="line"))
+        if len(self.floors[self.actual_floors]) <= self.actual_obstacle:
+            self.floors[self.actual_floors].append(Figure(points=[], mode="line"))
             print("add obstacle")
-        self.figures[self.actual_obstacle].points.append(Point(x=x, y=y))
+        self.floors[self.actual_floors][self.actual_obstacle].points.append(Point(x=x, y=y))
 
     def from_json(self, data):
         map = super().from_json(data)
-        for figure in map.figures:
-            print(figure)
-        map.figures = [Figure.from_json(Figure, figure) for figure in map.figures]
+        map.floors = [Floor.from_json(Floor, floor) for floor in map.floors]
         return map

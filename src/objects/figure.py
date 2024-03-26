@@ -14,6 +14,7 @@ class Figure(Object):
 
     def from_json(self, data):
 
+        print(data)
         figure = super().from_json(data)
         figure.points = [Point.from_json(point) for point in figure.points]
         return figure
