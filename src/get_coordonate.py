@@ -27,17 +27,14 @@ class GetCoordonate(threading.Thread):
                         if "----" in nouvelle_ligne:
                             obstacle_mode = not obstacle_mode
                             if obstacle_mode == False:
-                                self.main_window.map.actual_obstacle += 1
+                                self.main_window.map.index_figure += 1
                             print("Mode obstacle : {}".format(obstacle_mode))
                         else:
                             nouvelle_ligne = nouvelle_ligne[:-1]
                             nouvelle_ligne = nouvelle_ligne.split("(")[1]
                             x, z, y = nouvelle_ligne.split(", ")
                             if count != 0:
-                                if obstacle_mode:
-                                    self.main_window.add_obstacle_point(float(x), float(y))
-                                else:
-                                    self.main_window.add_point(float(x), float(y))
+                                self.main_window.add_point(float(x), float(y))
                         # self.main_window.update_plot()
                     self.taille_actuelle = taille_nouvelle
                 count += 1

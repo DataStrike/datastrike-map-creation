@@ -9,6 +9,7 @@ from PyQt5 import QtWidgets, uic
 from matplotlib.figure import Figure
 from src.objects.map import Map
 from src.objects.point import Point
+from src.objects.figure import Figure as FigureObject
 import numpy as np
 import json
 
@@ -71,6 +72,8 @@ class MainWindow(QMainWindow):
         self.floorMoreButton.clicked.connect(lambda: self.change_floor(1))
         self.floorNewButton.clicked.connect(lambda: self.add_floor())
 
+        self.figureNewButton.clicked.connect(lambda: self.add_figure())
+
         self.floorLabel.setText("Floor : {}".format(self.map.actual_floors))
 
         self.NameTextEdit.textChanged.connect(self.change_name_map)
@@ -78,6 +81,11 @@ class MainWindow(QMainWindow):
         self.ModeComboBox.currentIndexChanged.connect(self.change_mode_actual_figure)
 
         self.index_figure = 0
+
+    def add_figure(self):
+        self.map.floors[self.map.actual_floors].figures.append(FigureObject(points=[], mode="line"))
+        self.index_figure = len(self.map.floors[self.map.actual_floors].figures) - 1
+        self.map.index_figure = self.index_figure
 
     def change_floor(self, index):
 
@@ -165,6 +173,7 @@ class MainWindow(QMainWindow):
                 self.delete_point(event.xdata, event.ydata)
             elif self.mode == "select":
                 self.index_figure = self.find_nearest_point_index((event.xdata, event.ydata))[0]
+                self.map.index_figure = self.index_figure
                 self.FiguresLabel.setText("Figure : {}".format(self.index_figure))
             elif self.mode == "select_point":
                 self.reference_point = self.find_nearest_point_index((event.xdata, event.ydata))

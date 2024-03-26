@@ -13,6 +13,8 @@ class Map(Object):
 
         self.actual_floors = 0
         self.actual_obstacle = 1
+
+        self.index_figure = 0
         super().__init__(data_schema, **kwargs)
 
         # if len(self.floors) == 0:
@@ -35,8 +37,10 @@ class Map(Object):
             self.floors[self.actual_floors].figures.append(Figure(points=[], mode="full"))
 
     def add_point(self, x, y):
-        self.floors[self.actual_floors][0].points.append(Point(x=x, y=y))
-        # self.points.append(Point(x=x, y=y))
+        if len(self.floors[self.actual_floors]) <= self.index_figure:
+            self.floors[self.actual_floors].append(Figure(points=[], mode="line"))
+
+        self.floors[self.actual_floors][self.index_figure].points.append(Point(x=x, y=y))
 
     def add_point_to_specific_point(self, x, y, figure_index, point_index):
         new_point = Point(x=x, y=y)
